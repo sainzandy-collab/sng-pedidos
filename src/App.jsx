@@ -409,6 +409,12 @@ export default function App() {
       w.document.write(`</table>`);
     }
     w.document.write(`<div class="tot"><table>
+      <tr><td colspan="2" style="font-weight:bold;font-size:11px;padding-bottom:4px">PRECIOS UNITARIOS (con IVA)</td></tr>
+      ${f.pe>0?`<tr><td>EDP 100ml c/u</td><td style="text-align:right">$${fmt(f.pe)}</td></tr>`:''}
+      ${f.pt>0?`<tr><td>EDT 100ml c/u</td><td style="text-align:right">$${fmt(f.pt)}</td></tr>`:''}
+      ${f.ppe>0?`<tr><td>Probador EDP c/u</td><td style="text-align:right">$${fmt(f.ppe)}</td></tr>`:''}
+      ${f.ppt>0?`<tr><td>Probador EDT c/u</td><td style="text-align:right">$${fmt(f.ppt)}</td></tr>`:''}
+      <tr><td colspan="2" style="border-top:1px solid #111"></td></tr>
       <tr><td>EDP 100ml</td><td style="text-align:right;font-weight:bold">${t.edp100}</td></tr>
       <tr><td>EDT 100ml</td><td style="text-align:right;font-weight:bold">${t.edt100}</td></tr>
       <tr><td>Total 100ml</td><td style="text-align:right;font-weight:bold">${t.total100}</td></tr>
@@ -470,6 +476,12 @@ export default function App() {
       w.document.write(`</table>`);
     }
     w.document.write(`<div class="tot"><table>
+      ${f.pe>0||f.pt>0||f.ppe>0||f.ppt>0?`<tr><td colspan="2" style="font-weight:bold;font-size:11px;padding-bottom:4px">PRECIOS UNITARIOS (con IVA)</td></tr>
+      ${f.pe>0?`<tr><td>EDP 100ml c/u</td><td style="text-align:right">$${fmt(f.pe)}</td></tr>`:''}
+      ${f.pt>0?`<tr><td>EDT 100ml c/u</td><td style="text-align:right">$${fmt(f.pt)}</td></tr>`:''}
+      ${f.ppe>0?`<tr><td>Probador EDP c/u</td><td style="text-align:right">$${fmt(f.ppe)}</td></tr>`:''}
+      ${f.ppt>0?`<tr><td>Probador EDT c/u</td><td style="text-align:right">$${fmt(f.ppt)}</td></tr>`:''}
+      <tr><td colspan="2" style="border-top:1px solid #111"></td></tr>`:''}
       <tr><td>Total 100ml</td><td style="text-align:right;font-weight:bold">${t.total100}</td></tr>
       <tr><td>Total Prob</td><td style="text-align:right;font-weight:bold">${t.totalProb}</td></tr>
       <tr><td colspan="2" style="border-top:1px solid #111"></td></tr>
