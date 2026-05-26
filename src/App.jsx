@@ -266,8 +266,19 @@ export default function App() {
   const [saved, setSaved] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewOrder, setViewOrder] = useState(null);
+  const [logoUrl, setLogoUrl] = useState("/logo-sng.png");
+  const [outOfStock, setOutOfStock] = useState({});
+  const [stockSearch, setStockSearch] = useState("");
+  const [stockFilterG, setStockFilterG] = useState("ALL");
 
   useEffect(() => { loadOrders().then(o => { setSaved(o); setLoading(false); }); }, []);
+  // Persist logo & stock
+  useEffect(() => { try { const l = localStorage.getItem("sng-logo"); if(l) setLogoUrl(l); const s = localStorage.getItem("sng-stock"); if(s) setOutOfStock(JSON.parse(s)); } catch{} }, []);
+  useEffect(() => { try { localStorage.setItem("sng-logo", logoUrl); } catch{} }, [logoUrl]);
+  useEffect(() => { try { localStorage.setItem("sng-stock", JSON.stringify(outOfStock)); } catch{} }, [outOfStock]);
+
+  const toggleStock = (pid) => setOutOfStock(p => { const n={...p}; if(n[pid]) delete n[pid]; else n[pid]=true; return n; });
+  const isOOS = (pid) => !!outOfStock[pid];
 
   const upCart = (pid, sz, d) => setCart(p => { const k=`${pid}_${sz}`,c=p[k]||0,n=Math.max(0,c+d); if(!n){const x={...p};delete x[k];return x;} return {...p,[k]:n}; });
   const gQ = (pid, sz) => cart[`${pid}_${sz}`]||0;
@@ -303,7 +314,7 @@ export default function App() {
     const finalTotal = afterDesc * (1 - descTr/100);
     const finalNeto = finalTotal / divIva;
     const finalIva = finalTotal - finalNeto;
-    return {totalBrutoEDP,totalBrutoEDT,totalBruto,desc,afterDesc,neto,ivaAmount,iva,descTr,finalTotal,finalNeto,finalIva};
+    return {totalBrutoEDP,totalBrutoEDT,totalBruto,desc,afterDesc,neto,ivaAmount,iva,descTr,finalTotal,finalNeto,finalIva,pe,pt,ppe,ppt};
   },[pre,tot]);
 
   const filtered = useMemo(()=>{
@@ -502,15 +513,19 @@ export default function App() {
       {/* HEADER */}
       <div style={{background:"linear-gradient(180deg,rgba(199,107,152,0.08) 0%,transparent 100%)",borderBottom:"1px solid rgba(255,255,255,0.06)",padding:"14px 12px",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(20px)"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:900,margin:"0 auto"}}>
-          <div>
-            <h1 style={{fontSize:20,fontWeight:300,letterSpacing:6,textTransform:"uppercase",margin:0,background:"linear-gradient(135deg,#c76b98,#d4a574)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>SNG</h1>
-            <p style={{fontFamily:"Outfit",fontSize:9,letterSpacing:3,textTransform:"uppercase",color:"#8a7e75",margin:"2px 0 0"}}>Toma de Pedido</p>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {logoUrl && <img src={logoUrl} alt="Logo" style={{height:36,width:36,objectFit:"contain",borderRadius:6}} onError={()=>setLogoUrl("")}/>}
+            <div>
+              <h1 style={{fontSize:20,fontWeight:300,letterSpacing:6,textTransform:"uppercase",margin:0,background:"linear-gradient(135deg,#c76b98,#d4a574)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>SNG</h1>
+              <p style={{fontFamily:"Outfit",fontSize:9,letterSpacing:3,textTransform:"uppercase",color:"#8a7e75",margin:"2px 0 0"}}>Toma de Pedido</p>
+            </div>
           </div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap",justifyContent:"flex-end"}}>
-            {[{v:"catalog",l:"Catálogo"},{v:"cart",l:"Pedido"},{v:"precios",l:"Precios"},{v:"cliente",l:"Cliente"},{v:"archivo",l:"Archivo"}].map(t=>(
+            {[{v:"catalog",l:"Catálogo"},{v:"cart",l:"Pedido"},{v:"precios",l:"Precios"},{v:"cliente",l:"Cliente"},{v:"stock",l:"Stock"},{v:"archivo",l:"Archivo"}].map(t=>(
               <button key={t.v} onClick={()=>{setView(t.v);setViewOrder(null)}} style={{fontFamily:"Outfit",fontSize:9,letterSpacing:1,textTransform:"uppercase",padding:"5px 8px",borderRadius:14,border:view===t.v?"1px solid rgba(199,107,152,0.5)":"1px solid rgba(255,255,255,0.1)",background:view===t.v?"rgba(199,107,152,0.15)":"rgba(255,255,255,0.03)",color:view===t.v?"#c76b98":"#8a7e75",cursor:"pointer",position:"relative"}}>
                 {t.l}
                 {t.v==="cart"&&tot.totalAll>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#c76b98",color:"#fff",borderRadius:"50%",width:14,height:14,fontSize:8,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Outfit"}}>{tot.totalAll}</span>}
+                {t.v==="stock"&&Object.keys(outOfStock).length>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#c76060",color:"#fff",borderRadius:"50%",width:14,height:14,fontSize:8,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Outfit"}}>{Object.keys(outOfStock).length}</span>}
                 {t.v==="archivo"&&saved.length>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#d4a574",color:"#fff",borderRadius:"50%",width:14,height:14,fontSize:8,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Outfit"}}>{saved.length}</span>}
               </button>
             ))}
@@ -546,12 +561,12 @@ export default function App() {
           <div key={group} style={{marginBottom:20}}>
             <div style={{fontFamily:"Outfit",fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#6a6058",padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.04)",marginBottom:6}}>{group} ({prods.length})</div>
             {prods.map(p=>{
-              const gc=GC[p.genero]||GC.UNISEX,qty=gT(p.id),isE=exp===p.id;
-              return(<div key={p.id} style={{marginBottom:1}}>
-                <div onClick={()=>setExp(isE?null:p.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,background:qty>0?gc.glow:"transparent",border:qty>0?`1px solid ${gc.accent}33`:"1px solid transparent",cursor:"pointer",transition:"all 0.2s"}}>
-                  <div style={{width:3,height:28,borderRadius:2,background:qty>0?gc.accent:"rgba(255,255,255,0.06)"}}/>
+              const gc=GC[p.genero]||GC.UNISEX,qty=gT(p.id),isE=exp===p.id,oos=isOOS(p.id);
+              return(<div key={p.id} style={{marginBottom:1,opacity:oos?0.4:1}}>
+                <div onClick={()=>setExp(isE?null:p.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,background:qty>0?gc.glow:oos?"rgba(200,80,80,0.05)":"transparent",border:qty>0?`1px solid ${gc.accent}33`:oos?"1px solid rgba(200,80,80,0.15)":"1px solid transparent",cursor:"pointer",transition:"all 0.2s"}}>
+                  <div style={{width:3,height:28,borderRadius:2,background:oos?"#c76060":qty>0?gc.accent:"rgba(255,255,255,0.06)"}}/>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontFamily:"Outfit",fontSize:12,fontWeight:500,color:"#fff",letterSpacing:0.3}}>{p.fragancia} · {p.familia} · {TE[p.tapa]} {p.tapa}</div>
+                    <div style={{fontFamily:"Outfit",fontSize:12,fontWeight:500,color:oos?"#8a7e75":"#fff",letterSpacing:0.3}}>{p.fragancia} · {p.familia} · {TE[p.tapa]} {p.tapa} {oos&&<span style={{fontSize:9,color:"#c76060",fontWeight:600}}>SIN STOCK</span>}</div>
                     <div style={{fontFamily:"Outfit",fontSize:10,color:"#8a7e75",marginTop:1}}>{p.inspired}</div>
                   </div>
                   {qty>0&&<span style={{fontFamily:"Outfit",fontSize:11,fontWeight:600,color:gc.accent,background:`${gc.accent}22`,padding:"2px 8px",borderRadius:8}}>{qty}</span>}
@@ -641,6 +656,12 @@ export default function App() {
           {fac.totalBruto>0&&(
             <div style={{marginTop:10,padding:16,borderRadius:12,background:"linear-gradient(135deg,rgba(199,107,152,0.06),rgba(212,165,116,0.06))",border:"1px solid rgba(199,107,152,0.12)"}}>
               <div style={{fontFamily:"Outfit",fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#c76b98",marginBottom:8}}>Facturación (precios con IVA)</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:8}}>
+                {fac.pe>0&&<div style={{fontFamily:"Outfit",fontSize:10,color:"#6a6058",padding:"4px 8px",background:"rgba(255,255,255,0.02)",borderRadius:6}}>EDP 100ml: <span style={{color:"#d4a574"}}>${fmt(fac.pe)}</span> c/u</div>}
+                {fac.pt>0&&<div style={{fontFamily:"Outfit",fontSize:10,color:"#6a6058",padding:"4px 8px",background:"rgba(255,255,255,0.02)",borderRadius:6}}>EDT 100ml: <span style={{color:"#d4a574"}}>${fmt(fac.pt)}</span> c/u</div>}
+                {fac.ppe>0&&<div style={{fontFamily:"Outfit",fontSize:10,color:"#6a6058",padding:"4px 8px",background:"rgba(255,255,255,0.02)",borderRadius:6}}>EDP Prob: <span style={{color:"#d4a574"}}>${fmt(fac.ppe)}</span> c/u</div>}
+                {fac.ppt>0&&<div style={{fontFamily:"Outfit",fontSize:10,color:"#6a6058",padding:"4px 8px",background:"rgba(255,255,255,0.02)",borderRadius:6}}>EDT Prob: <span style={{color:"#d4a574"}}>${fmt(fac.ppt)}</span> c/u</div>}
+              </div>
               {[["Total EDP",fac.totalBrutoEDP],["Total EDT",fac.totalBrutoEDT],["Sub Total",fac.totalBruto]].map(([l,v],i)=>(
                 <div key={i} style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontFamily:"Outfit",fontSize:12,color:"#8a7e75"}}>{l}</span><span style={{fontFamily:"Outfit",fontSize:12,color:"#e8e0d8"}}>${fmt(v)}</span></div>
               ))}
@@ -724,6 +745,16 @@ export default function App() {
             <div style={{fontFamily:"Outfit",fontSize:10,color:"#6a6058",marginTop:6}}>Pago: {pre.metodoPago==="mercadopago"?"💳 Mercado Pago":"🏦 Depósito / Transferencia"}</div>
           </div>
         )}
+        {/* Logo config */}
+        <div style={{marginTop:24,padding:16,borderRadius:12,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontFamily:"Outfit",fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#8a7e75",marginBottom:10}}>Logo / Imagen de la App</div>
+          <p style={{fontFamily:"Outfit",fontSize:10,color:"#6a6058",marginBottom:8}}>Pegá la URL de tu logo (aparece en el header y en los PDFs)</p>
+          <input type="url" value={logoUrl} onChange={e=>setLogoUrl(e.target.value)} placeholder="https://ejemplo.com/mi-logo.png" style={{width:"100%",boxSizing:"border-box",padding:"11px 14px",fontFamily:"Outfit",fontSize:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,color:"#e8e0d8",outline:"none"}}/>
+          {logoUrl&&<div style={{marginTop:10,display:"flex",alignItems:"center",gap:10}}>
+            <img src={logoUrl} alt="Preview" style={{height:48,borderRadius:8,background:"rgba(255,255,255,0.05)",padding:4}} onError={(e)=>{e.target.style.display="none"}}/>
+            <button onClick={()=>setLogoUrl("")} style={{fontFamily:"Outfit",fontSize:9,padding:"4px 10px",borderRadius:8,border:"1px solid rgba(200,80,80,0.3)",background:"transparent",color:"#c76060",cursor:"pointer"}}>Quitar</button>
+          </div>}
+        </div>
       </div>)}
 
       {/* ===== CLIENTE ===== */}
@@ -753,6 +784,38 @@ export default function App() {
             </div>
           </div>
         )}
+      </div>)}
+
+      {/* ===== STOCK ===== */}
+      {view==="stock"&&(<div style={{paddingTop:14}}>
+        <h2 style={{fontWeight:300,fontSize:18,letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>Control de Stock</h2>
+        <p style={{fontFamily:"Outfit",fontSize:10,color:"#6a6058",marginBottom:14}}>Marcá las fragancias que no tenés en stock. Aparecen tachadas en el catálogo.</p>
+        <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
+          <input value={stockSearch} onChange={e=>setStockSearch(e.target.value)} placeholder="Buscar..." style={{flex:1,minWidth:150,padding:"10px 14px",fontFamily:"Outfit",fontSize:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,color:"#e8e0d8",outline:"none"}}/>
+          {["ALL","DONNA","UOMO","UNISEX"].map(g=>(<button key={g} onClick={()=>setStockFilterG(g)} style={B(stockFilterG===g,g!=="ALL"?GC[g]?.accent:"#c76b98")}>{g==="ALL"?"Todos":g}</button>))}
+        </div>
+        {Object.keys(outOfStock).length>0&&<div style={{fontFamily:"Outfit",fontSize:10,color:"#c76060",marginBottom:10,padding:"6px 10px",borderRadius:8,background:"rgba(200,80,80,0.08)",border:"1px solid rgba(200,80,80,0.15)"}}>
+          ⚠ {Object.keys(outOfStock).length} producto{Object.keys(outOfStock).length>1?"s":""} sin stock
+          <button onClick={()=>setOutOfStock({})} style={{marginLeft:10,fontFamily:"Outfit",fontSize:9,padding:"2px 8px",borderRadius:6,border:"1px solid rgba(200,80,80,0.3)",background:"transparent",color:"#c76060",cursor:"pointer"}}>Limpiar todo</button>
+        </div>}
+        {PRODUCTS.filter(p=>{
+          if(stockFilterG!=="ALL"&&p.genero!==stockFilterG)return false;
+          if(stockSearch){const q=stockSearch.toLowerCase();return p.fragancia.toLowerCase().includes(q)||p.inspired.toLowerCase().includes(q)||p.familia.toLowerCase().includes(q);}
+          return true;
+        }).sort((a,b)=>a.orden-b.orden).map(p=>{
+          const gc=GC[p.genero]||GC.UNISEX, oos=isOOS(p.id);
+          return(<div key={p.id} onClick={()=>toggleStock(p.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",marginBottom:1,borderRadius:8,background:oos?"rgba(200,80,80,0.08)":"transparent",border:oos?"1px solid rgba(200,80,80,0.2)":"1px solid transparent",cursor:"pointer",transition:"all 0.15s"}}>
+            <div style={{width:22,height:22,borderRadius:6,border:oos?"2px solid #c76060":"2px solid rgba(255,255,255,0.15)",background:oos?"#c76060":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}>
+              {oos&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✕</span>}
+            </div>
+            <div style={{width:3,height:24,borderRadius:2,background:gc.accent,opacity:oos?0.3:1}}/>
+            <div style={{flex:1,opacity:oos?0.5:1}}>
+              <div style={{fontFamily:"Outfit",fontSize:11,fontWeight:500,color:oos?"#8a7e75":"#fff",textDecoration:oos?"line-through":"none"}}>{p.fragancia} · {p.tipo} · {TE[p.tapa]} {p.tapa}</div>
+              <div style={{fontFamily:"Outfit",fontSize:9,color:"#6a6058"}}>{p.inspired}</div>
+            </div>
+            {oos&&<span style={{fontFamily:"Outfit",fontSize:8,color:"#c76060",fontWeight:600,letterSpacing:1,textTransform:"uppercase"}}>SIN STOCK</span>}
+          </div>);
+        })}
       </div>)}
 
       {/* ===== ARCHIVO ===== */}
